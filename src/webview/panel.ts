@@ -514,36 +514,38 @@ export class WebviewPanelManager {
       vscode.postMessage({ type: 'resetConfig', payload: {} });
     }
 
-    // 使用浏览器 Clipboard API 复制富文本 HTML
-    async function copyToClipboard() {
+    // 复制富文本 HTML 到剪贴板
+    // 使用隐藏 div + Selection API + execCommand 实现富文本复制
+    // 这是 VSCode webview 沙盒环境下最可靠的方案
+    function copyToClipboard() {
       if (!currentHtml) {
         vscode.postMessage({ type: 'copyError', payload: {} });
         return;
       }
 
       try {
-        // 方法1: 使用 ClipboardItem API (现代浏览器)
-        if (navigator.clipboard && navigator.clipboard.write) {
-          const htmlBlob = new Blob([currentHtml], { type: 'text/html' });
-          const textBlob = new Blob([currentHtml.replace(/<[^>]*>/g, '')], { type: 'text/plain' });
-          const clipboardItem = new ClipboardItem({
-            'text/html': htmlBlob,
-            'text/plain': textBlob
-          });
-          await navigator.clipboard.write([clipboardItem]);
-          vscode.postMessage({ type: 'copySuccess', payload: {} });
-          return;
-        }
+        // 创建隐藏容器，设置 innerHTML 让浏览器解析为 DOM
+        const container = document.createElement('div');
+        container.innerHTML = currentHtml;
+        container.style.position = 'fixed';
+        container.style.left = '-9999px';
+        container.style.top = '0';
+        container.style.opacity = '0';
+        document.body.appendChild(container);
 
-        // 方法2: 使用 execCommand (兼容旧浏览器)
-        const textarea = document.createElement('textarea');
-        textarea.value = currentHtml;
-        textarea.style.position = 'fixed';
-        textarea.style.left = '-9999px';
-        document.body.appendChild(textarea);
-        textarea.select();
+        // 使用 Selection API 选中容器内的全部内容
+        const range = document.createRange();
+        range.selectNodeContents(container);
+        const selection = window.getSelection();
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        // execCommand('copy') 会将选中的富文本（含样式）写入剪贴板
         document.execCommand('copy');
-        document.body.removeChild(textarea);
+
+        // 清理
+        selection.removeAllRanges();
+        document.body.removeChild(container);
 
         vscode.postMessage({ type: 'copySuccess', payload: {} });
       } catch (err) {
