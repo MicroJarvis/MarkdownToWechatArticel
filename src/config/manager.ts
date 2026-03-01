@@ -65,6 +65,8 @@ export class ConfigManager {
       return merged;
     } catch (error) {
       console.error('读取配置失败:', error);
+      // 通知用户配置文件损坏
+      vscode.window.showWarningMessage('配置文件已损坏，将使用默认配置');
       this.cachedConfig = defaultTemplate;
       return defaultTemplate;
     }

@@ -16,9 +16,12 @@ function isLargeFile(markdown: string): boolean {
 
 /**
  * 预处理代码块，使用 shiki 高亮
+ * 注意：使用更健壮的正则处理代码块
  */
 async function highlightCodeBlocks(markdown: string): Promise<string> {
-  const codeBlockRegex = /```(\w*)\n([\s\S]*?)```/g;
+  // 使用更健壮的正则：匹配 ``` 开始到下一个 ``` 结束
+  // 支持代码块内包含 ``` 的情况（通过非贪婪匹配和语言标识符检测）
+  const codeBlockRegex = /^```(\w*)\n([\s\S]*?)^```/gm;
   const matches: Array<{ lang: string; code: string; fullMatch: string }> = [];
 
   let match;

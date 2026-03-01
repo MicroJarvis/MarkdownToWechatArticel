@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import { WebviewPanelManager } from '../webview/panel';
 
 let documentChangeListener: vscode.Disposable | undefined;
+let isListenerRegistered: boolean = false;
 
 /**
  * 转换命令
@@ -31,8 +32,11 @@ export async function convertCommand(context: vscode.ExtensionContext): Promise<
     const extensionUri = context.extensionUri;
     const panelManager = WebviewPanelManager.getInstance(extensionUri);
 
-    // 设置文档变化监听器（实时预览）
-    setupDocumentChangeListener(context, panelManager);
+    // 设置文档变化监听器（实时预览）- 只注册一次
+    if (!isListenerRegistered) {
+      setupDocumentChangeListener(context, panelManager);
+      isListenerRegistered = true;
+    }
 
     // 显示预览
     await panelManager.show(markdown);
@@ -46,13 +50,8 @@ export async function convertCommand(context: vscode.ExtensionContext): Promise<
  * 设置文档变化监听器，实现实时预览
  */
 function setupDocumentChangeListener(context: vscode.ExtensionContext, panelManager: WebviewPanelManager): void {
-  // 清理旧的监听器
-  if (documentChangeListener) {
-    documentChangeListener.dispose();
-  }
-
-  // 防抖计时器
-  let debounceTimer: NodeJS.Timeout | undefined;
+  // 防抖计时器 - 使用 ReturnType<typeof setTimeout> 兼容浏览器和 Node.js 环境
+  let debounceTimer: ReturnType<typeof setTimeout> | undefined;
 
   // 监听文档变化
   documentChangeListener = vscode.workspace.onDidChangeTextDocument((event) => {

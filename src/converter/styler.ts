@@ -179,3 +179,11 @@ export function sanitizeStylesForWechat(styleString: string): string {
 
   return validParts.join('; ');
 }
+
+/**
+ * 应用微信样式过滤到样式字符串
+ * 移除不支持的 CSS 属性
+ */
+export function applyWechatStyleFilter(styleString: string): string {
+  return sanitizeStylesForWechat(styleString);
+}

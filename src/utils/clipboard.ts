@@ -5,9 +5,6 @@ import * as vscode from 'vscode';
  * 处理 HTML 格式的复制操作
  */
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-declare const Electron: any;
-
 /**
  * 将 HTML 复制到剪贴板
  * 使用 electron clipboard API 写入富文本格式
