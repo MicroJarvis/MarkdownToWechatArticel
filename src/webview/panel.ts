@@ -104,7 +104,7 @@ export class WebviewPanelManager {
 
       case 'copyToClipboard':
         if (message.payload.html) {
-          const success = await copyHtmlToClipboard(message.payload.html, this.extensionUri);
+          const success = await copyHtmlToClipboard(message.payload.html);
           if (success) {
             vscode.window.showInformationMessage('已复制到剪贴板，可直接粘贴到微信公众号编辑器');
           } else {

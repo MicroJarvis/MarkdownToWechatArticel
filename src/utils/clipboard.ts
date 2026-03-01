@@ -9,52 +9,46 @@ import { execFileSync } from 'child_process';
  * 处理 HTML 格式的复制操作
  */
 
-let compiledBinaryPath: string | undefined;
-
 /**
- * 获取/编译 html_to_clipboard 二进制工具路径
- * Swift 源文件打包在插件 resources/ 目录，首次调用时编译到用户临时目录
+ * macOS: 通过 osascript (JXA) 将 HTML 写入系统剪贴板
+ * 使用 NSPasteboard 同时写入 HTML 和纯文本格式
  */
-function getOrCompileBinary(extensionUri: vscode.Uri): string | undefined {
-  // 已编译过，直接返回
-  if (compiledBinaryPath && fs.existsSync(compiledBinaryPath)) {
-    return compiledBinaryPath;
-  }
-
-  const swiftSrc = path.join(extensionUri.fsPath, 'resources', 'html_to_clipboard.swift');
-  if (!fs.existsSync(swiftSrc)) {
-    return undefined;
-  }
-
-  const binaryPath = path.join(os.tmpdir(), 'wechat_formatter_html_to_clipboard');
+function copyHtmlMacOS(html: string): boolean {
+  const tmpFile = path.join(os.tmpdir(), `wechat_copy_${Date.now()}.html`);
   try {
-    execFileSync('swiftc', [swiftSrc, '-o', binaryPath], { timeout: 30000 });
-    compiledBinaryPath = binaryPath;
-    return binaryPath;
+    fs.writeFileSync(tmpFile, html, 'utf8');
+    const escapedPath = tmpFile.replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+    execFileSync('osascript', ['-l', 'JavaScript', '-e', `
+      ObjC.import('AppKit');
+      ObjC.import('Foundation');
+      var p = '${escapedPath}';
+      var html = $.NSString.stringWithContentsOfFileEncodingError(p, $.NSUTF8StringEncoding, null);
+      var pb = $.NSPasteboard.generalPasteboard;
+      pb.clearContents;
+      pb.setStringForType(html, $.NSPasteboardTypeHTML);
+      pb.setStringForType(html, $.NSPasteboardTypeString);
+    `], { timeout: 10000 });
+    return true;
   } catch {
-    return undefined;
+    return false;
+  } finally {
+    try { fs.unlinkSync(tmpFile); } catch {}
   }
 }
 
 /**
  * 将 HTML 复制到剪贴板（富文本格式）
- * macOS：通过预编译的 Swift 工具写入 NSPasteboard HTML 类型
- * 其他平台降级为纯文本
+ * macOS: 通过 osascript 调用 NSPasteboard 写入 HTML 格式
+ * 其他平台: 降级为纯文本
  */
-export async function copyHtmlToClipboard(html: string, extensionUri?: vscode.Uri): Promise<boolean> {
-  if (os.platform() === 'darwin' && extensionUri) {
-    try {
-      const binary = getOrCompileBinary(extensionUri);
-      if (binary) {
-        execFileSync(binary, [html], { timeout: 5000 });
-        return true;
-      }
-    } catch {
-      // 降级到纯文本方案
+export async function copyHtmlToClipboard(html: string): Promise<boolean> {
+  if (os.platform() === 'darwin') {
+    if (copyHtmlMacOS(html)) {
+      return true;
     }
   }
 
-  // 降级方案：写入 HTML 源码字符串（样式可能丢失）
+  // 降级方案：写入 HTML 源码字符串
   try {
     await vscode.env.clipboard.writeText(html);
     return true;
