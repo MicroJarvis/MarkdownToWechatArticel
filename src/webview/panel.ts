@@ -411,7 +411,13 @@ export class WebviewPanelManager {
           if (prop.type === 'color') {
             const input = document.createElement('input');
             input.type = 'color';
-            input.value = value || '#000000';
+            // 特殊处理：borderLeft 是完整的 CSS 字符串，需要提取颜色值
+            if (prop.key === 'borderLeft' && value) {
+              const colorMatch = String(value).match(/#([0-9a-fA-F]{3,6})/);
+              input.value = colorMatch ? '#' + colorMatch[1] : '#42b983';
+            } else {
+              input.value = value || '#000000';
+            }
             input.dataset.elem = elem.key;
             input.dataset.prop = prop.key;
             input.addEventListener('change', onConfigChange);
@@ -470,6 +476,24 @@ export class WebviewPanelManager {
 
       if (e.target.type === 'number') {
         value = parseFloat(value) || 0;
+      }
+
+      // 特殊处理：borderLeft 需要是完整的 CSS 字符串，而不仅仅是颜色
+      // 当用户从颜色选择器选择边框颜色时，构建完整的 border-left 值
+      if (propKey === 'borderLeft') {
+        // 获取当前元素原有的 borderLeft 样式（如果存在）
+        const currentStyle = currentConfig[elemKey]?.borderLeft || '4px solid #42b983';
+        // 提取现有的宽度和样式部分，替换颜色
+        // borderLeft 格式通常是: "4px solid #color" 或类似
+        const borderMatch = currentStyle.match(/^(\\d+px\\s+\\w+\\s+)?(.+)$/);
+        if (borderMatch) {
+          // 如果已有宽度和样式，保留它们，只更新颜色
+          const prefix = borderMatch[1] || '4px solid ';
+          value = prefix + value;
+        } else {
+          // 默认使用 4px solid + 颜色
+          value = '4px solid ' + value;
+        }
       }
 
       const update = {};
