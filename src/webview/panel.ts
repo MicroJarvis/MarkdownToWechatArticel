@@ -161,11 +161,15 @@ export class WebviewPanelManager {
   }
 
   private getWebviewContent(): string {
+    // H2 fix: 每次生成新的 nonce，配合 CSP 阻止脚本注入
+    const nonce = WebviewPanelManager.getNonce();
+    const cspSource = this.panel?.webview.cspSource ?? '';
     return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline' ${cspSource}; script-src 'nonce-${nonce}'; img-src ${cspSource} https: data:;">
   <title>微信排版预览</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -342,7 +346,7 @@ export class WebviewPanelManager {
     </div>
   </div>
 
-  <script>
+  <script nonce="${nonce}">
     const vscode = acquireVsCodeApi();
     let currentConfig = {};
     let currentHtml = '';
@@ -552,7 +556,19 @@ export class WebviewPanelManager {
 </html>`;
   }
 
+  // H2 fix: 生成随机 nonce 用于 CSP
+  private static getNonce(): string {
+    let text = '';
+    const possible = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+    for (let i = 0; i < 32; i++) {
+      text += possible.charAt(Math.floor(Math.random() * possible.length));
+    }
+    return text;
+  }
+
   public dispose(): void {
+    // M4 fix: 重置单例引用，确保下次调用 getInstance() 创建干净的实例
+    WebviewPanelManager.instance = undefined;
     for (const disposable of this.disposables) {
       disposable.dispose();
     }

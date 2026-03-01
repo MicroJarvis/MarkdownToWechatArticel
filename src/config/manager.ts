@@ -88,11 +88,12 @@ export class ConfigManager {
     const merged = mergeTemplates(currentConfig, partialConfig);
     this.cachedConfig = merged;
 
-    // 保存到文件
+    // 保存到文件，M2 fix: 写入失败时通知用户而不是静默吞掉
     try {
       fs.writeFileSync(this.configPath, JSON.stringify(merged, null, 2), 'utf-8');
     } catch (error) {
       console.error('保存配置失败:', error);
+      vscode.window.showWarningMessage('配置保存失败，此次设置将在关闭插件后丢失');
     }
   }
 

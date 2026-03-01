@@ -1,8 +1,8 @@
 import * as vscode from 'vscode';
 import { WebviewPanelManager } from '../webview/panel';
 
+// M3 fix: 用 disposable 本身代替单独的 flag，避免插件重激活后状态残留
 let documentChangeListener: vscode.Disposable | undefined;
-let isListenerRegistered: boolean = false;
 
 /**
  * 转换命令
@@ -32,10 +32,9 @@ export async function convertCommand(context: vscode.ExtensionContext): Promise<
     const extensionUri = context.extensionUri;
     const panelManager = WebviewPanelManager.getInstance(extensionUri);
 
-    // 设置文档变化监听器（实时预览）- 只注册一次
-    if (!isListenerRegistered) {
+    // 设置文档变化监听器（实时预览）- 只注册一次，重新激活后可重建
+    if (!documentChangeListener) {
       setupDocumentChangeListener(context, panelManager);
-      isListenerRegistered = true;
     }
 
     // 显示预览
@@ -73,7 +72,13 @@ function setupDocumentChangeListener(context: vscode.ExtensionContext, panelMana
     }, 300);
   });
 
-  context.subscriptions.push(documentChangeListener);
+  // M3 fix: 注册一个包装 disposable，插件停用时同时清除模块级引用
+  context.subscriptions.push({
+    dispose: () => {
+      documentChangeListener?.dispose();
+      documentChangeListener = undefined;
+    }
+  });
 }
 
 /**

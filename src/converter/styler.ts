@@ -114,13 +114,15 @@ export const applyInlineStyles: Plugin<[TemplateConfig], Root, Root> = (template
         return;
       }
 
-      // 普通标签：获取样式并应用
+      // 普通标签：获取样式并应用，M1 fix: 过滤微信不支持的 CSS 属性
       const style = getStyleForTag(tag, template);
       if (Object.keys(style).length > 0) {
         node.properties = node.properties || {};
         const existingStyle = node.properties.style as string || '';
-        const newStyle = styleToCss(style);
-        node.properties.style = existingStyle ? `${existingStyle};${newStyle}` : newStyle;
+        const newStyle = sanitizeStylesForWechat(styleToCss(style));
+        if (newStyle) {
+          node.properties.style = existingStyle ? `${existingStyle};${newStyle}` : newStyle;
+        }
       }
     });
 

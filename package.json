@@ -45,7 +45,12 @@
         "wechatFormatter.templateName": {
           "type": "string",
           "default": "简约白",
-          "description": "当前使用的模板名称"
+          "description": "当前使用的模板名称（预留，详细样式配置通过插件内置面板管理，存储于全局 JSON 配置文件）"
+        },
+        "wechatFormatter.resetOnNextOpen": {
+          "type": "boolean",
+          "default": false,
+          "description": "下次打开时重置所有样式配置为默认值"
         }
       }
     }
@@ -57,9 +62,13 @@
     "pretest": "npm run compile && npm run lint",
     "lint": "eslint src --ext ts",
     "test": "node ./out/test/runTest.js",
+    "test:unit": "jest",
+    "test:unit:watch": "jest --watch",
+    "test:unit:coverage": "jest --coverage",
     "package": "vsce package"
   },
   "devDependencies": {
+    "@types/jest": "^29.5.14",
     "@types/node": "^20.0.0",
     "@types/vscode": "^1.74.0",
     "@typescript-eslint/eslint-plugin": "^6.0.0",
@@ -67,6 +76,8 @@
     "@vscode/test-electron": "^2.0.0",
     "@vscode/vsce": "^2.22.0",
     "eslint": "^8.0.0",
+    "jest": "^29.7.0",
+    "ts-jest": "^29.4.6",
     "typescript": "^5.0.0"
   },
   "dependencies": {
