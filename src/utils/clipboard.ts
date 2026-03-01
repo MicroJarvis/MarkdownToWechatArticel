@@ -1,62 +1,63 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
+import * as os from 'os';
+import { execFileSync } from 'child_process';
 
 /**
  * 剪贴板工具
  * 处理 HTML 格式的复制操作
  */
 
+let compiledBinaryPath: string | undefined;
+
 /**
- * 将 HTML 复制到剪贴板
- * 使用 electron clipboard API 写入富文本格式
- *
- * @param html 要复制的 HTML 内容
- * @returns 是否成功
+ * 获取/编译 html_to_clipboard 二进制工具路径
+ * Swift 源文件打包在插件 resources/ 目录，首次调用时编译到用户临时目录
  */
-export async function copyHtmlToClipboard(html: string): Promise<boolean> {
-  // 尝试使用 electron clipboard API
-  // VSCode 扩展运行在 electron 环境中
-  try {
-    // 在 VSCode 扩展环境中，可以通过 global 访问 electron
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const electronModule = (global as any).process?.versions?.electron;
-    if (electronModule) {
-      // 动态导入 electron（在 VSCode 扩展主机中可用）
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const electron = require('electron');
-      if (electron && electron.clipboard && typeof electron.clipboard.writeHTML === 'function') {
-        electron.clipboard.writeHTML(html);
-        return true;
-      }
-    }
-  } catch {
-    // electron API 不可用，继续尝试降级方案
+function getOrCompileBinary(extensionUri: vscode.Uri): string | undefined {
+  // 已编译过，直接返回
+  if (compiledBinaryPath && fs.existsSync(compiledBinaryPath)) {
+    return compiledBinaryPath;
   }
 
-  // 降级方案：使用 VSCode API 复制 HTML 文本
-  // 注意：微信公众号编辑器可能无法正确解析粘贴的 HTML
+  const swiftSrc = path.join(extensionUri.fsPath, 'resources', 'html_to_clipboard.swift');
+  if (!fs.existsSync(swiftSrc)) {
+    return undefined;
+  }
+
+  const binaryPath = path.join(os.tmpdir(), 'wechat_formatter_html_to_clipboard');
   try {
-    // 直接复制 HTML 源码，用户粘贴到微信后可能需要手动调整
-    await vscode.env.clipboard.writeText(html);
-
-    // 提示用户
-    vscode.window.showInformationMessage(
-      '已复制内容到剪贴板，请粘贴到微信公众号编辑器。如果样式丢失，请尝试粘贴为纯文本后重新格式化。'
-    );
-
-    return true;
+    execFileSync('swiftc', [swiftSrc, '-o', binaryPath], { timeout: 30000 });
+    compiledBinaryPath = binaryPath;
+    return binaryPath;
   } catch {
-    return false;
+    return undefined;
   }
 }
 
 /**
- * 检查 electron clipboard API 是否可用
+ * 将 HTML 复制到剪贴板（富文本格式）
+ * macOS：通过预编译的 Swift 工具写入 NSPasteboard HTML 类型
+ * 其他平台降级为纯文本
  */
-export function isElectronClipboardAvailable(): boolean {
+export async function copyHtmlToClipboard(html: string, extensionUri?: vscode.Uri): Promise<boolean> {
+  if (os.platform() === 'darwin' && extensionUri) {
+    try {
+      const binary = getOrCompileBinary(extensionUri);
+      if (binary) {
+        execFileSync(binary, [html], { timeout: 5000 });
+        return true;
+      }
+    } catch {
+      // 降级到纯文本方案
+    }
+  }
+
+  // 降级方案：写入 HTML 源码字符串（样式可能丢失）
   try {
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
-    const electron = require('electron');
-    return !!(electron && electron.clipboard && typeof electron.clipboard.writeHTML === 'function');
+    await vscode.env.clipboard.writeText(html);
+    return true;
   } catch {
     return false;
   }

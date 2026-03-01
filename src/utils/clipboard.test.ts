@@ -1,7 +1,7 @@
 jest.mock('vscode');
 
 import * as vscode from 'vscode';
-import { copyTextToClipboard, copyHtmlToClipboard, isElectronClipboardAvailable } from './clipboard';
+import { copyTextToClipboard, copyHtmlToClipboard } from './clipboard';
 
 const mockWriteText = vscode.env.clipboard.writeText as jest.Mock;
 
@@ -23,7 +23,7 @@ describe('copyTextToClipboard', () => {
 describe('copyHtmlToClipboard', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  test('electron 不可用时降级使用 VSCode clipboard', async () => {
+  test('无 extensionUri 时降级使用 VSCode clipboard', async () => {
     mockWriteText.mockResolvedValueOnce(undefined);
     const result = await copyHtmlToClipboard('<p>Hello</p>');
     expect(result).toBe(true);
@@ -33,12 +33,5 @@ describe('copyHtmlToClipboard', () => {
     mockWriteText.mockRejectedValueOnce(new Error('fail'));
     const result = await copyHtmlToClipboard('<p>Hello</p>');
     expect(result).toBe(false);
-  });
-});
-
-describe('isElectronClipboardAvailable', () => {
-  test('在 Jest/Node 环境中不应崩溃', () => {
-    expect(() => isElectronClipboardAvailable()).not.toThrow();
-    expect(typeof isElectronClipboardAvailable()).toBe('boolean');
   });
 });
