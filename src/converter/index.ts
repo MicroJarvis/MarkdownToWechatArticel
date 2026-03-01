@@ -34,7 +34,9 @@ function processInlineCode(html: string, template: TemplateConfig): string {
   });
 
   // 现在处理所有剩余的 <code> 标签（都是行内代码）
-  result = result.replace(/<code>/g, `<code style="${inlineCodeStyle}">`);
+  // 转义双引号，避免 font-family 中的引号（如 "SF Mono"）破坏 HTML style 属性
+  const escapedInlineCodeStyle = inlineCodeStyle.replace(/"/g, '&quot;');
+  result = result.replace(/<code>/g, `<code style="${escapedInlineCodeStyle}">`);
 
   // M6 + H1 fix: 使用函数替换，避免 $ 特殊字符问题，同时用唯一 token 避免内容冲突
   preCodePlaceholders.forEach((original, index) => {

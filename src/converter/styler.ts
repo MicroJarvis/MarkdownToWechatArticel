@@ -46,9 +46,33 @@ const SPECIAL_TAGS = {
   pre: (node: Element, template: TemplateConfig) => {
     // 检查是否已经有 shiki 处理过的样式
     if (node.properties?.style) {
-      // shiki 已经处理过，只添加一些额外样式
-      const extraStyle = `margin-top: ${template.codeBlock.marginTop}px; margin-bottom: ${template.codeBlock.marginBottom}px; overflow-x: auto;`;
-      node.properties.style = node.properties.style + ';' + extraStyle;
+      // shiki 已经处理过，用用户配置覆盖 shiki 的背景色和字号，并添加额外样式
+      const overrides: string[] = [];
+      if (template.codeBlock.backgroundColor) {
+        overrides.push(`background-color: ${template.codeBlock.backgroundColor}`);
+      }
+      if (template.codeBlock.fontSize !== undefined) {
+        overrides.push(`font-size: ${template.codeBlock.fontSize}px`);
+      }
+      if (template.codeBlock.borderRadius !== undefined) {
+        overrides.push(`border-radius: ${template.codeBlock.borderRadius}px`);
+      }
+      if (template.codeBlock.paddingLeft !== undefined) {
+        overrides.push(`padding-left: ${template.codeBlock.paddingLeft}px`);
+      }
+      if (template.codeBlock.paddingRight !== undefined) {
+        overrides.push(`padding-right: ${template.codeBlock.paddingRight}px`);
+      }
+      if (template.codeBlock.paddingTop !== undefined) {
+        overrides.push(`padding-top: ${template.codeBlock.paddingTop}px`);
+      }
+      if (template.codeBlock.paddingBottom !== undefined) {
+        overrides.push(`padding-bottom: ${template.codeBlock.paddingBottom}px`);
+      }
+      overrides.push(`margin-top: ${template.codeBlock.marginTop}px`);
+      overrides.push(`margin-bottom: ${template.codeBlock.marginBottom}px`);
+      overrides.push('overflow-x: auto');
+      node.properties.style = node.properties.style + '; ' + overrides.join('; ');
     } else {
       // 未处理过的代码块，应用模板样式
       node.properties = node.properties || {};
@@ -94,8 +118,10 @@ const SPECIAL_TAGS = {
   blockquote: (node: Element, template: TemplateConfig) => {
     node.properties = node.properties || {};
     node.properties.style = styleToCss(template.blockquote);
-    // 添加 padding-top 和 padding-bottom
-    node.properties.style += '; padding-top: 10px; padding-bottom: 10px;';
+    // 添加 padding-top 和 padding-bottom（使用模板值，若未配置则使用默认值）
+    const ptop = template.blockquote.paddingTop ?? 10;
+    const pbottom = template.blockquote.paddingBottom ?? 10;
+    node.properties.style += `; padding-top: ${ptop}px; padding-bottom: ${pbottom}px`;
   },
 };
 
