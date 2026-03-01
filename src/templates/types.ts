@@ -140,6 +140,9 @@ export function styleToCss(style: ElementStyle): string {
   if (style.borderTop) {
     parts.push(`border-top: ${style.borderTop}`);
   }
+  if (style.borderRight) {
+    parts.push(`border-right: ${style.borderRight}`);
+  }
   if (style.paddingTop !== undefined) {
     parts.push(`padding-top: ${style.paddingTop}px`);
   }

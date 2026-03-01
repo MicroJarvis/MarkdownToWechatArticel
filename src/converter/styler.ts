@@ -32,7 +32,6 @@ function getStyleForTag(tag: string, template: TemplateConfig): ElementStyle {
     td: template.tableCell,
     hr: template.hr,
     img: template.image,
-    pre: template.codeBlock,
   };
 
   return styleMap[tag] || {};
@@ -69,8 +68,12 @@ const SPECIAL_TAGS = {
       if (template.codeBlock.paddingBottom !== undefined) {
         overrides.push(`padding-bottom: ${template.codeBlock.paddingBottom}px`);
       }
-      overrides.push(`margin-top: ${template.codeBlock.marginTop}px`);
-      overrides.push(`margin-bottom: ${template.codeBlock.marginBottom}px`);
+      if (template.codeBlock.marginTop !== undefined) {
+        overrides.push(`margin-top: ${template.codeBlock.marginTop}px`);
+      }
+      if (template.codeBlock.marginBottom !== undefined) {
+        overrides.push(`margin-bottom: ${template.codeBlock.marginBottom}px`);
+      }
       overrides.push('overflow-x: auto');
       node.properties.style = node.properties.style + '; ' + overrides.join('; ');
     } else {

@@ -315,7 +315,7 @@ export class WebviewPanelManager {
       font-size: 14px;
     }
     /* 预览内容样式重置 */
-    .preview-container >>> img { max-width: 100% !important; height: auto !important; }
+    .preview-container img { max-width: 100% !important; height: auto !important; }
   </style>
 </head>
 <body>
@@ -442,7 +442,7 @@ export class WebviewPanelManager {
           } else if (prop.type === 'number') {
             const input = document.createElement('input');
             input.type = 'number';
-            input.value = value || '';
+            input.value = value !== undefined && value !== null ? value : '';
             if (prop.min !== undefined) input.min = prop.min;
             if (prop.max !== undefined) input.max = prop.max;
             input.dataset.elem = elem.key;
@@ -489,7 +489,7 @@ export class WebviewPanelManager {
         const currentStyle = currentConfig[elemKey]?.borderLeft || '4px solid #42b983';
         // 提取现有的宽度和样式部分，替换颜色
         // borderLeft 格式通常是: "4px solid #color" 或类似
-        const borderMatch = currentStyle.match(/^(\\d+px\\s+\\w+\\s+)?(.+)$/);
+        const borderMatch = currentStyle.match(/^(\d+px\s+\w+\s+)?(.+)$/);
         if (borderMatch) {
           // 如果已有宽度和样式，保留它们，只更新颜色
           const prefix = borderMatch[1] || '4px solid ';
@@ -537,6 +537,11 @@ export class WebviewPanelManager {
         const range = document.createRange();
         range.selectNodeContents(container);
         const selection = window.getSelection();
+        if (!selection) {
+          vscode.postMessage({ type: 'copyError', payload: {} });
+          document.body.removeChild(container);
+          return;
+        }
         selection.removeAllRanges();
         selection.addRange(range);
 
