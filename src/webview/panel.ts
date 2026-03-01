@@ -55,7 +55,11 @@ export class WebviewPanelManager {
 
     this.panel.webview.onDidReceiveMessage(
       async (message: WebviewToExtensionMessage) => {
-        await this.handleMessage(message);
+        try {
+          await this.handleMessage(message);
+        } catch (error) {
+          console.error('[WechatFormatter] handleMessage error:', error);
+        }
       },
       null,
       this.disposables
@@ -336,7 +340,7 @@ export class WebviewPanelManager {
     <div class="config-container">
       <div class="config-header">
         <h2>模板配置</h2>
-        <button class="btn btn-secondary" onclick="resetConfig()">重置</button>
+        <button class="btn btn-secondary" id="resetBtn">重置</button>
       </div>
 
       <div id="warning" style="display:none" class="warning-banner"></div>
@@ -345,7 +349,7 @@ export class WebviewPanelManager {
       <div id="config-sections"></div>
 
       <div class="copy-btn-container">
-        <button class="btn btn-primary" onclick="copyToClipboard()">复制到剪贴板</button>
+        <button class="btn btn-primary" id="copyBtn">复制到剪贴板</button>
       </div>
     </div>
   </div>
@@ -518,13 +522,17 @@ export class WebviewPanelManager {
       vscode.postMessage({ type: 'resetConfig', payload: {} });
     }
 
-    // 复制：把 HTML 发给 extension 主机，由其调用 Electron clipboard API 写入富文本
+    // 复制：把 HTML 发给 extension 主机，由其写入系统剪贴板
     function copyToClipboard() {
       if (!currentHtml) {
         return;
       }
       vscode.postMessage({ type: 'copyToClipboard', payload: { html: currentHtml } });
     }
+
+    // 绑定按钮事件（不使用 onclick 内联属性，因为 CSP nonce 策略会拦截内联事件处理器）
+    document.getElementById('copyBtn').addEventListener('click', copyToClipboard);
+    document.getElementById('resetBtn').addEventListener('click', resetConfig);
   </script>
 </body>
 </html>`;
