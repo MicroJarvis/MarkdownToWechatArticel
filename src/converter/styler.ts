@@ -1,5 +1,5 @@
 import { TemplateConfig, styleToCss, ElementStyle } from '../templates/types';
-import { visit } from 'unist-util-visit';
+import { visitParents } from 'unist-util-visit-parents';
 import type { Plugin, Transformer } from 'unified';
 import type { Root, Element, Node } from 'hast';
 
@@ -41,48 +41,6 @@ function getStyleForTag(tag: string, template: TemplateConfig): ElementStyle {
  * 需要特殊处理的标签
  */
 const SPECIAL_TAGS = {
-  // 代码块中的 pre 标签
-  pre: (node: Element, template: TemplateConfig) => {
-    // 检查是否已经有 shiki 处理过的样式
-    if (node.properties?.style) {
-      // shiki 已经处理过，用用户配置覆盖 shiki 的背景色和字号，并添加额外样式
-      const overrides: string[] = [];
-      if (template.codeBlock.backgroundColor) {
-        overrides.push(`background-color: ${template.codeBlock.backgroundColor}`);
-      }
-      if (template.codeBlock.fontSize !== undefined) {
-        overrides.push(`font-size: ${template.codeBlock.fontSize}px`);
-      }
-      if (template.codeBlock.borderRadius !== undefined) {
-        overrides.push(`border-radius: ${template.codeBlock.borderRadius}px`);
-      }
-      if (template.codeBlock.paddingLeft !== undefined) {
-        overrides.push(`padding-left: ${template.codeBlock.paddingLeft}px`);
-      }
-      if (template.codeBlock.paddingRight !== undefined) {
-        overrides.push(`padding-right: ${template.codeBlock.paddingRight}px`);
-      }
-      if (template.codeBlock.paddingTop !== undefined) {
-        overrides.push(`padding-top: ${template.codeBlock.paddingTop}px`);
-      }
-      if (template.codeBlock.paddingBottom !== undefined) {
-        overrides.push(`padding-bottom: ${template.codeBlock.paddingBottom}px`);
-      }
-      if (template.codeBlock.marginTop !== undefined) {
-        overrides.push(`margin-top: ${template.codeBlock.marginTop}px`);
-      }
-      if (template.codeBlock.marginBottom !== undefined) {
-        overrides.push(`margin-bottom: ${template.codeBlock.marginBottom}px`);
-      }
-      overrides.push('overflow-x: auto');
-      node.properties.style = node.properties.style + '; ' + overrides.join('; ');
-    } else {
-      // 未处理过的代码块，应用模板样式
-      node.properties = node.properties || {};
-      node.properties.style = styleToCss(template.codeBlock);
-    }
-  },
-
   // 链接
   a: (node: Element, template: TemplateConfig) => {
     node.properties = node.properties || {};
@@ -134,7 +92,7 @@ const SPECIAL_TAGS = {
  */
 export const applyInlineStyles: Plugin<[TemplateConfig], Root, Root> = (template) => {
   const transformer: Transformer<Root, Root> = (tree) => {
-    visit(tree, isElement, (node: Element) => {
+    visitParents(tree, isElement, (node: Element, ancestors: Node[]) => {
       const tag = node.tagName;
 
       // 特殊标签处理
@@ -144,7 +102,18 @@ export const applyInlineStyles: Plugin<[TemplateConfig], Root, Root> = (template
       }
 
       // 普通标签：获取样式并应用，M1 fix: 过滤微信不支持的 CSS 属性
-      const style = getStyleForTag(tag, template);
+      let style = getStyleForTag(tag, template);
+
+      // 若 <p> 在 blockquote 内，用 blockquote 的颜色覆盖段落颜色
+      if (tag === 'p' && template.blockquote.color) {
+        const insideBlockquote = ancestors.some(
+          (ancestor) => isElement(ancestor) && ancestor.tagName === 'blockquote'
+        );
+        if (insideBlockquote) {
+          style = { ...style, color: template.blockquote.color };
+        }
+      }
+
       if (Object.keys(style).length > 0) {
         node.properties = node.properties || {};
         const existingStyle = node.properties.style as string || '';

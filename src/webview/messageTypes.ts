@@ -112,6 +112,7 @@ export const CONFIGURABLE_ELEMENTS: ConfigurableElement[] = [
     label: '代码块',
     properties: [
       { key: 'fontSize', label: '字号', type: 'number', unit: 'px', min: 10, max: 18 },
+      { key: 'color', label: '字色', type: 'color' },
       { key: 'backgroundColor', label: '背景色', type: 'color' },
     ],
   },

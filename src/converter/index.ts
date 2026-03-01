@@ -53,8 +53,45 @@ function processInlineCode(html: string, template: TemplateConfig): string {
 }
 
 /**
- * 将 Markdown 转换为微信公众号格式的 HTML
+ * 处理代码块 <pre> 标签样式
+ * shiki 生成的 HTML 作为原始字符串嵌入，无法通过 hast 访问，需在字符串层面覆盖样式
  */
+function processCodeBlock(html: string, template: TemplateConfig): string {
+  const cb = template.codeBlock;
+  // 构建需要覆盖/追加的样式片段
+  const overrides: string[] = [];
+  if (cb.backgroundColor) { overrides.push(`background-color: ${cb.backgroundColor}`); }
+  if (cb.color) { overrides.push(`color: ${cb.color}`); }
+  if (cb.fontSize !== undefined) { overrides.push(`font-size: ${cb.fontSize}px`); }
+  if (cb.borderRadius !== undefined) { overrides.push(`border-radius: ${cb.borderRadius}px`); }
+  if (cb.paddingLeft !== undefined) { overrides.push(`padding-left: ${cb.paddingLeft}px`); }
+  if (cb.paddingRight !== undefined) { overrides.push(`padding-right: ${cb.paddingRight}px`); }
+  if (cb.paddingTop !== undefined) { overrides.push(`padding-top: ${cb.paddingTop}px`); }
+  if (cb.paddingBottom !== undefined) { overrides.push(`padding-bottom: ${cb.paddingBottom}px`); }
+  if (cb.marginTop !== undefined) { overrides.push(`margin-top: ${cb.marginTop}px`); }
+  if (cb.marginBottom !== undefined) { overrides.push(`margin-bottom: ${cb.marginBottom}px`); }
+  overrides.push('overflow-x: auto');
+
+  if (overrides.length === 0) {
+    return html;
+  }
+
+  const overrideStr = overrides.join('; ');
+
+  // 替换所有 <pre ...> 标签：在现有 style 属性后追加覆盖样式，后出现的同名属性优先级更高
+  return html.replace(/<pre([^>]*)>/g, (match, attrs: string) => {
+    const styleMatch = attrs.match(/style="([^"]*)"/);
+    if (styleMatch) {
+      // 已有 style 属性，追加覆盖样式
+      const newStyle = `${styleMatch[1]}; ${overrideStr}`;
+      return `<pre${attrs.replace(/style="[^"]*"/, `style="${newStyle}"`)}>`;
+    }
+    // 没有 style 属性，直接添加
+    return `<pre${attrs} style="${overrideStr}">`;
+  });
+}
+
+
 export async function convertToWechat(
   markdown: string,
   template: TemplateConfig
@@ -86,7 +123,10 @@ export async function convertToWechat(
     // Step 3: 处理行内代码
     html = processInlineCode(html, template);
 
-    // Step 4: 清理 shiki 标记（使用 markdown.ts 中的常量）
+    // Step 4: 处理代码块 <pre> 样式（shiki 生成的原始 HTML，无法通过 hast 访问）
+    html = processCodeBlock(html, template);
+
+    // Step 5: 清理 shiki 标记（使用 markdown.ts 中的常量）
     html = html.split(SHIKI_BLOCK_START).join('').split(SHIKI_BLOCK_END).join('');
 
     // Step 5: 包装在容器中
