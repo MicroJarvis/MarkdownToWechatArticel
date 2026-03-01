@@ -93,7 +93,9 @@ export async function convertToWechat(
       paddingBottom: template.container.paddingBottom,
     });
 
-    return `<div style="${containerStyle}">${html}</div>`;
+    // 转义双引号，避免 font-family 中的引号（如 "Segoe UI"）破坏 HTML style 属性
+    const escapedStyle = containerStyle.replace(/"/g, '&quot;');
+    return `<div style="${escapedStyle}">${html}</div>`;
   } catch (error) {
     throw new Error(`Markdown 转换失败: ${error instanceof Error ? error.message : String(error)}`);
   }
