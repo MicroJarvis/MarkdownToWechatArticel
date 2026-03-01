@@ -1,0 +1,82 @@
+{
+  "name": "wechat-article-template",
+  "displayName": "微信公众号 Markdown 排版工具",
+  "description": "将 Markdown 文档转换为适合微信公众号发布的格式，支持代码高亮、表格、任务列表等语法",
+  "version": "0.0.6",
+  "publisher": "tfjiang",
+  "engines": {
+    "vscode": "^1.74.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onCommand:wechatFormatter.convert"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "wechatFormatter.convert",
+        "title": "转换到微信格式",
+        "category": "微信排版"
+      }
+    ],
+    "menus": {
+      "editor/context": [
+        {
+          "command": "wechatFormatter.convert",
+          "when": "editorLangId == markdown",
+          "group": "navigation"
+        }
+      ]
+    },
+    "keybindings": [
+      {
+        "command": "wechatFormatter.convert",
+        "key": "ctrl+alt+w",
+        "mac": "cmd+alt+w",
+        "when": "editorTextFocus && editorLangId == markdown"
+      }
+    ],
+    "configuration": {
+      "title": "微信公众号 Markdown 排版",
+      "properties": {
+        "wechatFormatter.templateName": {
+          "type": "string",
+          "default": "简约白",
+          "description": "当前使用的模板名称"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "pretest": "npm run compile && npm run lint",
+    "lint": "eslint src --ext ts",
+    "test": "node ./out/test/runTest.js",
+    "package": "vsce package"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.74.0",
+    "@typescript-eslint/eslint-plugin": "^6.0.0",
+    "@typescript-eslint/parser": "^6.0.0",
+    "@vscode/test-electron": "^2.0.0",
+    "@vscode/vsce": "^2.22.0",
+    "eslint": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "hast-util-raw": "^9.1.0",
+    "rehype-stringify": "^10.0.0",
+    "remark-gfm": "^4.0.0",
+    "remark-parse": "^11.0.0",
+    "remark-rehype": "^11.0.0",
+    "shiki": "^1.0.0",
+    "unified": "^11.0.0",
+    "unist-util-visit": "^5.1.0"
+  }
+}
