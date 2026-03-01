@@ -7,6 +7,7 @@ import {
   CONFIGURABLE_ELEMENTS,
 } from './messageTypes';
 import { convertToWechat, getConversionWarning } from '../converter';
+import { copyHtmlToClipboard } from '../utils/clipboard';
 
 /**
  * Webview Panel 管理器
@@ -101,12 +102,15 @@ export class WebviewPanelManager {
         await this.updatePreview();
         break;
 
-      case 'copySuccess':
-        vscode.window.showInformationMessage('已复制到剪贴板，可直接粘贴到微信公众号编辑器');
-        break;
-
-      case 'copyError':
-        vscode.window.showErrorMessage('复制失败，请重试');
+      case 'copyToClipboard':
+        if (message.payload.html) {
+          const success = await copyHtmlToClipboard(message.payload.html);
+          if (success) {
+            vscode.window.showInformationMessage('已复制到剪贴板，可直接粘贴到微信公众号编辑器');
+          } else {
+            vscode.window.showErrorMessage('复制失败，请重试');
+          }
+        }
         break;
     }
   }
@@ -514,49 +518,12 @@ export class WebviewPanelManager {
       vscode.postMessage({ type: 'resetConfig', payload: {} });
     }
 
-    // 复制富文本 HTML 到剪贴板
-    // 使用隐藏 div + Selection API + execCommand 实现富文本复制
-    // 这是 VSCode webview 沙盒环境下最可靠的方案
+    // 复制：把 HTML 发给 extension 主机，由其调用 Electron clipboard API 写入富文本
     function copyToClipboard() {
       if (!currentHtml) {
-        vscode.postMessage({ type: 'copyError', payload: {} });
         return;
       }
-
-      try {
-        // 创建隐藏容器，设置 innerHTML 让浏览器解析为 DOM
-        const container = document.createElement('div');
-        container.innerHTML = currentHtml;
-        container.style.position = 'fixed';
-        container.style.left = '-9999px';
-        container.style.top = '0';
-        container.style.opacity = '0';
-        document.body.appendChild(container);
-
-        // 使用 Selection API 选中容器内的全部内容
-        const range = document.createRange();
-        range.selectNodeContents(container);
-        const selection = window.getSelection();
-        if (!selection) {
-          vscode.postMessage({ type: 'copyError', payload: {} });
-          document.body.removeChild(container);
-          return;
-        }
-        selection.removeAllRanges();
-        selection.addRange(range);
-
-        // execCommand('copy') 会将选中的富文本（含样式）写入剪贴板
-        document.execCommand('copy');
-
-        // 清理
-        selection.removeAllRanges();
-        document.body.removeChild(container);
-
-        vscode.postMessage({ type: 'copySuccess', payload: {} });
-      } catch (err) {
-        console.error('Copy failed:', err);
-        vscode.postMessage({ type: 'copyError', payload: {} });
-      }
+      vscode.postMessage({ type: 'copyToClipboard', payload: { html: currentHtml } });
     }
   </script>
 </body>

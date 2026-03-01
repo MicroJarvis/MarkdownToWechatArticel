@@ -20,7 +20,7 @@ export interface ExtensionToWebviewMessage {
 /**
  * Webview → Extension 消息类型
  */
-export type WebviewToExtensionMessageType = 'updateConfig' | 'copyToClipboard' | 'resetConfig' | 'ready' | 'copySuccess' | 'copyError';
+export type WebviewToExtensionMessageType = 'updateConfig' | 'copyToClipboard' | 'resetConfig' | 'ready';
 
 /**
  * Webview → Extension 消息

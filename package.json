@@ -2,7 +2,7 @@
   "name": "wechat-article-template",
   "displayName": "微信公众号 Markdown 排版工具",
   "description": "将 Markdown 文档转换为适合微信公众号发布的格式，支持代码高亮、表格、任务列表等语法",
-  "version": "0.0.16",
+  "version": "0.0.17",
   "publisher": "tfjiang",
   "engines": {
     "vscode": "^1.74.0"
