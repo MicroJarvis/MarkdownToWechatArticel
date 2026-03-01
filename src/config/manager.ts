@@ -1,21 +1,22 @@
 import * as vscode from 'vscode';
+import * as path from 'path';
+import * as fs from 'fs';
 import { TemplateConfig, mergeTemplates } from '../templates/types';
 import { getDefaultTemplate } from '../templates/default';
 
-const CONFIG_SECTION = 'wechatFormatter';
+const CONFIG_FILE_NAME = 'wechat-formatter-config.json';
 
 /**
  * 配置管理器
- * 封装 VSCode workspace configuration 的读写操作
+ * 使用 JSON 文件存储配置，支持嵌套对象
  */
 export class ConfigManager {
   private static instance: ConfigManager;
+  private configPath: string | undefined;
+  private cachedConfig: TemplateConfig | undefined;
 
   private constructor() {}
 
-  /**
-   * 获取单例实例
-   */
   public static getInstance(): ConfigManager {
     if (!ConfigManager.instance) {
       ConfigManager.instance = new ConfigManager();
@@ -24,30 +25,72 @@ export class ConfigManager {
   }
 
   /**
+   * 初始化配置路径
+   */
+  public initialize(context: vscode.ExtensionContext): void {
+    // 使用全局存储路径
+    this.configPath = path.join(context.globalStorageUri.fsPath, CONFIG_FILE_NAME);
+
+    // 确保目录存在
+    const dir = path.dirname(this.configPath);
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+    }
+  }
+
+  /**
    * 获取当前配置
    */
   public get(): TemplateConfig {
-    const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
+    // 如果有缓存，直接返回
+    if (this.cachedConfig) {
+      return this.cachedConfig;
+    }
+
     const defaultTemplate = getDefaultTemplate();
 
-    // 从 VSCode 配置中读取覆盖值
-    const overrides = this.loadOverridesFromConfig(config);
+    // 如果没有配置文件，返回默认模板
+    if (!this.configPath || !fs.existsSync(this.configPath)) {
+      this.cachedConfig = defaultTemplate;
+      return defaultTemplate;
+    }
 
-    // 合并默认模板和用户覆盖
-    return mergeTemplates(defaultTemplate, overrides);
+    try {
+      const content = fs.readFileSync(this.configPath, 'utf-8');
+      const savedConfig = JSON.parse(content) as Partial<TemplateConfig>;
+
+      // 合并默认模板和保存的配置
+      const merged = mergeTemplates(defaultTemplate, savedConfig);
+      this.cachedConfig = merged;
+      return merged;
+    } catch (error) {
+      console.error('读取配置失败:', error);
+      this.cachedConfig = defaultTemplate;
+      return defaultTemplate;
+    }
   }
 
   /**
    * 设置配置（增量更新）
    */
   public async set(partialConfig: Partial<TemplateConfig>): Promise<void> {
-    const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
+    if (!this.configPath) {
+      console.error('配置路径未初始化');
+      return;
+    }
 
-    // 将部分配置保存到 VSCode 设置
-    for (const [key, value] of Object.entries(partialConfig)) {
-      if (value !== undefined) {
-        await config.update(key, value, vscode.ConfigurationTarget.Global);
-      }
+    // 获取当前配置
+    const currentConfig = this.get();
+
+    // 合并新配置
+    const merged = mergeTemplates(currentConfig, partialConfig);
+    this.cachedConfig = merged;
+
+    // 保存到文件
+    try {
+      fs.writeFileSync(this.configPath, JSON.stringify(merged, null, 2), 'utf-8');
+    } catch (error) {
+      console.error('保存配置失败:', error);
     }
   }
 
@@ -55,77 +98,29 @@ export class ConfigManager {
    * 重置为默认配置
    */
   public async reset(): Promise<void> {
-    const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
-
-    // 获取所有配置键
-    const keys = Object.keys(config);
-
-    // 删除所有自定义配置
-    for (const key of keys) {
-      try {
-        await config.update(key, undefined, vscode.ConfigurationTarget.Global);
-      } catch {
-        // 忽略删除失败
-      }
-    }
-  }
-
-  /**
-   * 获取当前模板名称
-   */
-  public getTemplateName(): string {
-    const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
-    return config.get<string>('templateName') || '简约白';
-  }
-
-  /**
-   * 设置模板名称
-   */
-  public async setTemplateName(name: string): Promise<void> {
-    const config = vscode.workspace.getConfiguration(CONFIG_SECTION);
-    await config.update('templateName', name, vscode.ConfigurationTarget.Global);
-  }
-
-  /**
-   * 从 VSCode 配置加载覆盖值
-   */
-  private loadOverridesFromConfig(config: vscode.WorkspaceConfiguration): Partial<TemplateConfig> {
-    const overrides: Partial<TemplateConfig> = {};
-
-    // 读取各个元素样式的覆盖
-    const elementKeys: (keyof TemplateConfig)[] = [
-      'h1', 'h2', 'h3', 'h4', 'h5', 'h6',
-      'paragraph', 'link', 'blockquote',
-      'ul', 'ol', 'li',
-      'code', 'codeBlock',
-      'table', 'tableHeader', 'tableCell',
-      'hr', 'image', 'container',
-    ];
-
-    for (const key of elementKeys) {
-      const value = config.get<Record<string, unknown>>(key);
-      if (value && Object.keys(value).length > 0) {
-        (overrides as Record<string, unknown>)[key] = value;
-      }
+    if (!this.configPath) {
+      return;
     }
 
-    return overrides;
+    // 删除配置文件
+    if (fs.existsSync(this.configPath)) {
+      fs.unlinkSync(this.configPath);
+    }
+
+    // 清除缓存
+    this.cachedConfig = undefined;
   }
 
   /**
-   * 监听配置变化
+   * 清除缓存
    */
-  public onDidChange(callback: () => void): vscode.Disposable {
-    return vscode.workspace.onDidChangeConfiguration(event => {
-      if (event.affectsConfiguration(CONFIG_SECTION)) {
-        callback();
-      }
-    });
+  public clearCache(): void {
+    this.cachedConfig = undefined;
   }
 }
 
 /**
- * 导出单例访问方法
+ * 导出便捷方法
  */
 export function getConfig(): TemplateConfig {
   return ConfigManager.getInstance().get();

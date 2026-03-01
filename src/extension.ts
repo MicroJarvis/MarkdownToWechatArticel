@@ -8,11 +8,11 @@ import { ConfigManager } from './config/manager';
 export function activate(context: vscode.ExtensionContext): void {
   console.log('微信公众号 Markdown 排版工具已激活');
 
+  // 初始化配置管理器
+  ConfigManager.getInstance().initialize(context);
+
   // 注册转换命令
   registerConvertCommand(context);
-
-  // 初始化配置管理器
-  ConfigManager.getInstance();
 
   console.log('命令已注册: wechatFormatter.convert');
 }
